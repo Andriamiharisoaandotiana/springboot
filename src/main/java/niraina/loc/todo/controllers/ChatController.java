@@ -1,69 +1,86 @@
 package niraina.loc.todo.controllers;
 
 import niraina.loc.todo.entities.Message;
-import niraina.loc.todo.entities.Todo;
 import niraina.loc.todo.services.MessageService;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
 @RestController
 @RequestMapping(path = "chat")
 public class ChatController {
-    private final MessageService service;
 
-    public ChatController(MessageService service) {
+    private final MessageService service;
+    private final RestTemplate restTemplate;
+
+    public ChatController(MessageService service, RestTemplate restTemplate) {
         this.service = service;
+        this.restTemplate = restTemplate;
     }
 
     @ResponseStatus(value = HttpStatus.OK)
     @GetMapping(produces = APPLICATION_JSON_VALUE)
-    public List<Message> getAll(){
+    public List<Message> getAll() {
         return this.service.getAllMessage();
     }
 
     @PostMapping
-    public Message handleChat(@RequestBody Message userMessage) {
+    public ResponseEntity<Message> handleChat(@RequestBody Message userMessage) {
         try {
             String question = userMessage.getMessage();
+            System.out.println("📩 Question reçue : " + question);
 
-            // Construire la commande d'exécution du script Python avec la question
-            Process process = Runtime.getRuntime().exec("python \"E:/chatExemple/Nouveau dossier/todo/todo/src/main/java/niraina/loc/todo/controllers/chat.py\" \"" + question + "\"");
+            // Construire le payload
+            Map<String, String> requestBody = new HashMap<>();
+            requestBody.put("message", question);
 
-            // Lire la sortie standard du processus
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            String response = reader.readLine();
+            // Transformer en JSON pour vérification
+            ObjectMapper objectMapper = new ObjectMapper();
+            String jsonPayload = objectMapper.writeValueAsString(requestBody);
+            System.out.println("📤 Données envoyées à Flask : " + jsonPayload);
 
-            // Si la sortie est vide, essayer de lire la sortie d'erreur
-            if (response == null || response.isEmpty()) {
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-                StringBuilder errorResponse = new StringBuilder();
-                String line;
-                while ((line = errorReader.readLine()) != null) {
-                    errorResponse.append(line).append("\n");
-                }
-                if (errorResponse.length() > 0) {
-                    System.out.println("Erreur du processus Python : " + errorResponse.toString());
-                }
-                response = "Aucune réponse trouvée.";
+            // Définir les headers
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // Créer la requête HTTP avec le payload et les headers
+            HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
+
+            // URL de l'API Flask
+            String flaskApiUrl = "http://0.0.0.0:5000/chat";
+
+            // Envoyer la requête à Flask
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    flaskApiUrl,
+                    HttpMethod.POST,
+                    request,
+                    Map.class
+            );
+
+            // Vérifier la réponse
+            System.out.println("📥 Réponse reçue de Flask : " + response.getBody());
+
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                String chatbotResponse = (String) response.getBody().get("response");
+                System.out.println("🤖 Réponse du chatbot : " + chatbotResponse);
+                userMessage.setResponse(chatbotResponse);
+            } else {
+                System.out.println("❌ Erreur : réponse vide ou statut HTTP incorrect");
+                userMessage.setResponse("Erreur lors de la communication avec le chatbot.");
             }
 
-            // Mettre la réponse dans l'objet Message
-            userMessage.setResponse(response);
-
-            // Sauvegarder et retourner le message
-            return service.saveMessage(userMessage);
-
         } catch (Exception e) {
-            e.printStackTrace(); // Afficher l'exception dans les logs
+            e.printStackTrace();
             userMessage.setResponse("Erreur lors du traitement de la demande.");
-            return service.saveMessage(userMessage);
         }
-    }
 
+        return ResponseEntity.ok(service.saveMessage(userMessage));
+    }
 }

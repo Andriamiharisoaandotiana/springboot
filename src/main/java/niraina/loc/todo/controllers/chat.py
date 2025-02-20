@@ -45,7 +45,7 @@ def chatbot(texte_pdf, question):
 
 
 # Extraire le texte du PDF
-pdf_path = 'E:/chatExemple/Nouveau dossier/todo/todo/src/main/java/niraina/loc/todo/controllers/questions.pdf'  # Assurez-vous que le chemin du PDF est correct
+pdf_path = 'E:/chatExemple/Nouveau dossier/chatspringBoot/springboot/src/main/java/niraina/loc/todo/controllers/questions.pdf'  # Assurez-vous que le chemin du PDF est correct
 texte_pdf = extraire_texte_pdf(pdf_path)
 
 # Récupérer la question depuis les arguments de la ligne de commande
