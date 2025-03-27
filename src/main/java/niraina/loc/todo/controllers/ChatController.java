@@ -37,9 +37,9 @@ public class ChatController {
             String question = userMessage.getMessage();
             System.out.println("📩 Question reçue : " + question);
 
-            // Construire le payload
+            // Construire le payload (CORRECTION ICI)
             Map<String, String> requestBody = new HashMap<>();
-            requestBody.put("message", question);
+            requestBody.put("question", question); // Utiliser "question" au lieu de "message"
 
             // Transformer en JSON pour vérification
             ObjectMapper objectMapper = new ObjectMapper();
@@ -54,7 +54,7 @@ public class ChatController {
             HttpEntity<String> request = new HttpEntity<>(jsonPayload, headers);
 
             // URL de l'API Flask
-            String flaskApiUrl = "http://0.0.0.0:5000/chat";
+            String flaskApiUrl = "http://127.0.0.1:5000/chat";
 
             // Envoyer la requête à Flask
             ResponseEntity<Map> response = restTemplate.exchange(
